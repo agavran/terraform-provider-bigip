@@ -7,10 +7,14 @@ If a copy of the MPL was not distributed with this file,You can obtain one at ht
 package bigip
 
 import (
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 var TestPartition = "Common"
@@ -70,4 +74,17 @@ func loadFixtureBytes(path string) []byte {
 // loadFixtureString returns the entire contents of the given file as a string
 func loadFixtureString(path string) string {
 	return string(loadFixtureBytes(path))
+}
+
+// testCheckSleep is a helper that pauses test execution for a specified duration.
+func testCheckSleep(seconds ...int) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		timer := 60
+		if len(seconds) > 0 && seconds[0] > 0 {
+			timer = seconds[0]
+		}
+		fmt.Printf("Pausing for %d seconds...\n", timer)
+		time.Sleep(time.Duration(timer) * time.Second)
+		return nil
+	}
 }
