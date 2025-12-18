@@ -77,6 +77,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-go 1.23.0
+replace github.com/f5devcentral/go-bigip => github.com/agavran/go-bigip v0.0.0-20251217095002-33bcb1a7c03b
+
+go 1.24
 
 toolchain go1.24.1
