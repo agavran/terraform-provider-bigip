@@ -88,3 +88,18 @@ func testCheckSleep(seconds ...int) resource.TestCheckFunc {
 		return nil
 	}
 }
+
+func testPrintImportedState(s []*terraform.InstanceState) error {
+	if len(s) != 1 {
+		return fmt.Errorf("expected 1 state, got %d", len(s))
+	}
+	state := s[0]
+	fmt.Printf("\n=== IMPORTED STATE ===\n")
+	fmt.Printf("ID: %s\n", state.ID)
+	fmt.Printf("Attributes:\n")
+	for k, v := range state.Attributes {
+		fmt.Printf("  %s = %s\n", k, v)
+	}
+	fmt.Printf("======================\n\n")
+	return nil
+}
