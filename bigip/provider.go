@@ -161,6 +161,7 @@ func Provider() *schema.Provider {
 			"bigip_sys_db_variable":                 resourceBigipSysDbVariable(),
 			"bigip_sys_dns":                         resourceBigipSysDns(),
 			"bigip_sys_iapp":                        resourceBigipSysIapp(),
+			"bigip_sys_mgmt_route":                  resourceBigipSysMgmtRoute(),
 			"bigip_sys_ntp":                         resourceBigipSysNtp(),
 			"bigip_sys_ocsp":                        resourceBigipSysOcsp(),
 			"bigip_sys_provision":                   resourceBigipSysProvision(),
