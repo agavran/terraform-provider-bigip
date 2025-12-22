@@ -167,6 +167,7 @@ func Provider() *schema.Provider {
 			"bigip_sys_mgmt_route":                  resourceBigipSysMgmtRoute(),
 			"bigip_sys_ntp":                         resourceBigipSysNtp(),
 			"bigip_sys_remote_role":                 resourceBigipSysRemoteRole(),
+			"bigip_sys_remote_user":                 resourceBigipSysRemoteUser(),
 			"bigip_sys_ocsp":                        resourceBigipSysOcsp(),
 			"bigip_sys_provision":                   resourceBigipSysProvision(),
 			"bigip_sys_ifile":                       resourceBigipSysIfile(),
