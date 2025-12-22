@@ -159,6 +159,7 @@ func Provider() *schema.Provider {
 			"bigip_ltm_virtual_server":              resourceBigipLtmVirtualServer(),
 			"bigip_ltm_ifile":                       resourceBigipLtmIfile(),
 			"bigip_sys_auth_ldap":                   resourceBigipSysAuthLdap(),
+			"bigip_sys_auth_source":                 resourceBigipSysAuthSource(),
 			"bigip_sys_db_variable":                 resourceBigipSysDbVariable(),
 			"bigip_sys_dns":                         resourceBigipSysDns(),
 			"bigip_sys_iapp":                        resourceBigipSysIapp(),
