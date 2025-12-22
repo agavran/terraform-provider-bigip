@@ -388,6 +388,26 @@ func resourceBigipSysAuthLdapUpdate(ctx context.Context, d *schema.ResourceData,
 	return resourceBigipSysAuthLdapRead(ctx, d, meta)
 }
 
+// setAttrLdapStringWithDiag is a helper that sets an optional string attribute and returns diagnostics.
+func setAttrLdapStringWithDiag(d *schema.ResourceData, attrName string, val string) diag.Diagnostics {
+	if val != "" {
+		if err := d.Set(attrName, val); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+	return nil
+}
+
+// setAttrLdapIntWithDiag is a helper that sets an optional int attribute and returns diagnostics.
+func setAttrLdapIntWithDiag(d *schema.ResourceData, attrName string, val int) diag.Diagnostics {
+	if val != 0 {
+		if err := d.Set(attrName, val); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+	return nil
+}
+
 func resourceBigipSysAuthLdapRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	client := meta.(*bigip.BigIP)
@@ -411,85 +431,35 @@ func resourceBigipSysAuthLdapRead(ctx context.Context, d *schema.ResourceData, m
 	if err := d.Set("servers", obj.Servers); err != nil {
 		diags = append(diags, diag.FromErr(err)...)
 	}
-	if err := d.Set("port", obj.Port); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("bind_dn", obj.BindDn); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
+
+	diags = append(diags, setAttrLdapIntWithDiag(d, "port", obj.Port)...)
+	diags = append(diags, setAttrLdapIntWithDiag(d, "bind_timeout", obj.BindTimeout)...)
+	diags = append(diags, setAttrLdapIntWithDiag(d, "search_timeout", obj.SearchTimeout)...)
+	diags = append(diags, setAttrLdapIntWithDiag(d, "idle_timeout", obj.IdleTimeout)...)
+	diags = append(diags, setAttrLdapIntWithDiag(d, "version", obj.Version)...)
+
+	diags = append(diags, setAttrLdapStringWithDiag(d, "bind_dn", obj.BindDn)...)
 	// Don't read bind_pw back (sensitive field)
-	if err := d.Set("bind_timeout", obj.BindTimeout); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("search_base_dn", obj.SearchBaseDn); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("search_timeout", obj.SearchTimeout); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("login_attribute", obj.LoginAttribute); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("filter", obj.Filter); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("group_dn", obj.GroupDn); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("group_member_attribute", obj.GroupMemberAttribute); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("check_host_attr", obj.CheckHostAttr); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("check_roles_group", obj.CheckRolesGroup); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("idle_timeout", obj.IdleTimeout); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("ignore_auth_info_unavail", obj.IgnoreAuthInfoUnavail); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("ignore_unknown_user", obj.IgnoreUnknownUser); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("debug", obj.Debug); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("user_template", obj.UserTemplate); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("warnings", obj.Warnings); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("referrals", obj.Referrals); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("scope", obj.Scope); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("ssl", obj.Ssl); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("ssl_ca_cert_file", obj.SslCaCertFile); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("ssl_check_peer", obj.SslCheckPeer); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("ssl_ciphers", obj.SslCiphers); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("ssl_client_cert", obj.SslClientCert); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("ssl_client_key", obj.SslClientKey); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
-	if err := d.Set("version", obj.Version); err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-	}
+	diags = append(diags, setAttrLdapStringWithDiag(d, "search_base_dn", obj.SearchBaseDn)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "login_attribute", obj.LoginAttribute)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "filter", obj.Filter)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "group_dn", obj.GroupDn)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "group_member_attribute", obj.GroupMemberAttribute)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "check_host_attr", obj.CheckHostAttr)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "check_roles_group", obj.CheckRolesGroup)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "ignore_auth_info_unavail", obj.IgnoreAuthInfoUnavail)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "ignore_unknown_user", obj.IgnoreUnknownUser)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "debug", obj.Debug)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "user_template", obj.UserTemplate)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "warnings", obj.Warnings)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "referrals", obj.Referrals)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "scope", obj.Scope)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "ssl", obj.Ssl)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "ssl_ca_cert_file", obj.SslCaCertFile)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "ssl_check_peer", obj.SslCheckPeer)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "ssl_ciphers", obj.SslCiphers)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "ssl_client_cert", obj.SslClientCert)...)
+	diags = append(diags, setAttrLdapStringWithDiag(d, "ssl_client_key", obj.SslClientKey)...)
 
 	return diags
 }
