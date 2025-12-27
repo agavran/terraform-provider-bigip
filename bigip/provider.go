@@ -173,6 +173,7 @@ func Provider() *schema.Provider {
 			"bigip_sys_ifile":                       resourceBigipSysIfile(),
 			"bigip_sys_snmp":                        resourceBigipSysSnmp(),
 			"bigip_sys_snmp_traps":                  resourceBigipSysSnmpTraps(),
+			"bigip_sys_syslog":                      resourceBigipSysSyslog(),
 			"bigip_sys_bigiplicense":                resourceBigipSysBigiplicense(),
 			"bigip_as3":                             resourceBigipAs3(),
 			"bigip_do":                              resourceBigipDo(),
