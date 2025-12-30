@@ -162,6 +162,7 @@ func Provider() *schema.Provider {
 			"bigip_sys_auth_source":                 resourceBigipSysAuthSource(),
 			"bigip_sys_db_variable":                 resourceBigipSysDbVariable(),
 			"bigip_sys_dns":                         resourceBigipSysDns(),
+			"bigip_sys_global_settings":             resourceBigipSysGlobalSettings(),
 			"bigip_sys_iapp":                        resourceBigipSysIapp(),
 			"bigip_sys_mgmt_fw_rule":                resourceBigipSysMgmtFwRule(),
 			"bigip_sys_mgmt_route":                  resourceBigipSysMgmtRoute(),
