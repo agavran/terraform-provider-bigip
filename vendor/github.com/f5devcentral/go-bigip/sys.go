@@ -1752,8 +1752,8 @@ type SSHDConfig struct {
 	Allow             []string `json:"allow,omitempty"`
 	Banner            string   `json:"banner,omitempty"`
 	BannerText        string   `json:"bannerText,omitempty"`
-	FipsCipherVersion int      `json:"fipsCipherVersion,omitempty"`
-	InactivityTimeout int      `json:"inactivityTimeout,omitempty"`
+	FipsCipherVersion int      `json:"fipsCipherVersion"`
+	InactivityTimeout int      `json:"inactivityTimeout"`
 	Include           string   `json:"include,omitempty"`
 	LogLevel          string   `json:"logLevel,omitempty"`
 	Login             string   `json:"login,omitempty"`
@@ -1811,18 +1811,18 @@ type HTTPDConfig struct {
 	AuthPamIdleTimeout       int      `json:"authPamIdleTimeout,omitempty"`
 	AuthPamValidateIp        string   `json:"authPamValidateIp,omitempty"`
 	FastcgiTimeout           int      `json:"fastcgiTimeout,omitempty"`
-	FipsCipherVersion        int      `json:"fipsCipherVersion,omitempty"`
+	FipsCipherVersion        int      `json:"fipsCipherVersion"`
 	HostnameLookup           string   `json:"hostnameLookup,omitempty"`
 	Include                  string   `json:"include,omitempty"`
 	LogLevel                 string   `json:"logLevel,omitempty"`
 	MaxClients               int      `json:"maxClients,omitempty"`
 	RedirectHttpToHttps      string   `json:"redirectHttpToHttps,omitempty"`
-	RequestBodyMaxTimeout    int      `json:"requestBodyMaxTimeout,omitempty"`
-	RequestBodyMinRate       int      `json:"requestBodyMinRate,omitempty"`
-	RequestBodyTimeout       int      `json:"requestBodyTimeout,omitempty"`
-	RequestHeaderMaxTimeout  int      `json:"requestHeaderMaxTimeout,omitempty"`
-	RequestHeaderMinRate     int      `json:"requestHeaderMinRate,omitempty"`
-	RequestHeaderTimeout     int      `json:"requestHeaderTimeout,omitempty"`
+	RequestBodyMaxTimeout    int      `json:"requestBodyMaxTimeout"`
+	RequestBodyMinRate       int      `json:"requestBodyMinRate"`
+	RequestBodyTimeout       int      `json:"requestBodyTimeout"`
+	RequestHeaderMaxTimeout  int      `json:"requestHeaderMaxTimeout"`
+	RequestHeaderMinRate     int      `json:"requestHeaderMinRate"`
+	RequestHeaderTimeout     int      `json:"requestHeaderTimeout"`
 	SslCaCertFile            string   `json:"sslCaCertFile,omitempty"`
 	SslCertchainfile         string   `json:"sslCertchainfile,omitempty"`
 	SslCertfile              string   `json:"sslCertfile,omitempty"`
@@ -1832,9 +1832,9 @@ type HTTPDConfig struct {
 	SslOcspDefaultResponder  string   `json:"sslOcspDefaultResponder,omitempty"`
 	SslOcspEnable            string   `json:"sslOcspEnable,omitempty"`
 	SslOcspOverrideResponder string   `json:"sslOcspOverrideResponder,omitempty"`
-	SslOcspResponderTimeout  int      `json:"sslOcspResponderTimeout,omitempty"`
-	SslOcspResponseMaxAge    int      `json:"sslOcspResponseMaxAge,omitempty"`
-	SslOcspResponseTimeSkew  int      `json:"sslOcspResponseTimeSkew,omitempty"`
+	SslOcspResponderTimeout  int      `json:"sslOcspResponderTimeout"`
+	SslOcspResponseMaxAge    int      `json:"sslOcspResponseMaxAge"`
+	SslOcspResponseTimeSkew  int      `json:"sslOcspResponseTimeSkew"`
 	SslPort                  int      `json:"sslPort,omitempty"`
 	SslProtocol              string   `json:"sslProtocol,omitempty"`
 	SslVerifyClient          string   `json:"sslVerifyClient,omitempty"`
@@ -1874,7 +1874,6 @@ func (b *BigIP) DeleteHTTPDConfig() error {
 		AuthPamIdleTimeout:       1200,
 		AuthPamValidateIp:        "on",
 		FastcgiTimeout:           300,
-		FipsCipherVersion:        0,
 		HostnameLookup:           "off",
 		Include:                  "none",
 		LogLevel:                 "warn",
