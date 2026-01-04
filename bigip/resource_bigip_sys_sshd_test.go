@@ -152,6 +152,10 @@ func testCheckSshdDestroyed(s *terraform.State) error {
 
 		var errors []string
 
+		if len(sshdConfig.Allow) != 1 || sshdConfig.Allow[0] != "ALL" {
+			errors = append(errors, fmt.Sprintf("allow not reset to default ([ALL]), got: %v", sshdConfig.Allow))
+		}
+
 		if sshdConfig.Banner != "disabled" {
 			errors = append(errors, fmt.Sprintf("banner not reset to default (disabled), got: %s", sshdConfig.Banner))
 		}

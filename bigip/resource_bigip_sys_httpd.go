@@ -17,8 +17,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
+// defaultAllowAll returns the default value for the allow field
 func defaultAllowAll() (interface{}, error) {
-	return []interface{}{"ALL"}, nil
+	return []interface{}{"All"}, nil
 }
 
 func resourceBigipSysHttpd() *schema.Resource {

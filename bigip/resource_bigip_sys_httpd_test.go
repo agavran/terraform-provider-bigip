@@ -146,7 +146,10 @@ func testCheckHttpdDestroyed(s *terraform.State) error {
 
 		var errors []string
 
-		// Check that all settings are reset to defaults
+		if len(httpdConfig.Allow) != 1 || httpdConfig.Allow[0] != "All" {
+			errors = append(errors, fmt.Sprintf("allow not reset to default ([All]), got: %v", httpdConfig.Allow))
+		}
+
 		if httpdConfig.AuthName != "BIG-IP" {
 			errors = append(errors, fmt.Sprintf("auth_name not reset to default (BIG-IP), got: %s", httpdConfig.AuthName))
 		}

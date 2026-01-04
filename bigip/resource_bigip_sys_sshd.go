@@ -19,8 +19,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// defaultAllowAll returns the default value for the allow field
-func defaultAllowAll() (interface{}, error) {
+// defaultAllowALL returns the default value for the allow field
+func defaultAllowALL() (interface{}, error) {
 	return []interface{}{"ALL"}, nil
 }
 
@@ -107,6 +107,11 @@ func validateAllowListDiff(ctx context.Context, diff *schema.ResourceDiff, meta 
 
 func resourceBigipSysSshd() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages BIG-IP SSH daemon configuration. " +
+			"**Note:** Only one instance of this resource should exist per BIG-IP device. " +
+			"F5 Networks recommends that users of the Configuration utility exit the utility before changes are made to the system using the sshd component." +
+			"This is because making changes to the system using this component causes a restart of the sshd daemon." +
+			"Likewise, restarting the sshd daemon creates the necessity for a restart of the Configuration utility.",
 		CreateContext: resourceBigipSysSshdCreate,
 		UpdateContext: resourceBigipSysSshdUpdate,
 		ReadContext:   resourceBigipSysSshdRead,
@@ -120,7 +125,7 @@ func resourceBigipSysSshd() *schema.Resource {
 				Type:        schema.TypeList,
 				Optional:    true,
 				Elem:        &schema.Schema{Type: schema.TypeString},
-				DefaultFunc: defaultAllowAll,
+				DefaultFunc: defaultAllowALL,
 				Description: "IP addresses or networks (CIDR) allowed to access SSH (default: ALL)",
 			},
 			"banner": {
@@ -138,9 +143,8 @@ func resourceBigipSysSshd() *schema.Resource {
 			},
 			"fips_cipher_version": {
 				Type:        schema.TypeInt,
-				Optional:    true,
 				Computed:    true,
-				Description: "FIPS cipher version (0 for default)",
+				Description: "FIPS cipher version - read-only, set by system based on FIPS mode",
 			},
 			"inactivity_timeout": {
 				Type:        schema.TypeInt,
@@ -198,9 +202,6 @@ func buildSshdConfig(d *schema.ResourceData) *bigip.SSHDConfig {
 	setStringIfOk(d, "log_level", &config.LogLevel)
 	setStringIfOk(d, "login", &config.Login)
 
-	if val, ok := d.GetOk("fips_cipher_version"); ok {
-		config.FipsCipherVersion = val.(int)
-	}
 	if val, ok := d.GetOk("inactivity_timeout"); ok {
 		config.InactivityTimeout = val.(int)
 	}
