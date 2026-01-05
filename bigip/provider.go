@@ -177,6 +177,7 @@ func Provider() *schema.Provider {
 			"bigip_sys_snmp_community":              resourceBigipSysSnmpCommunity(),
 			"bigip_sys_snmp_config":                 resourceBigipSysSnmpConfig(),
 			"bigip_sys_snmp_traps":                  resourceBigipSysSnmpTraps(),
+			"bigip_sys_snmp_user":                   resourceBigipSysSnmpUser(),
 			"bigip_sys_sshd":                        resourceBigipSysSshd(),
 			"bigip_sys_syslog":                      resourceBigipSysSyslog(),
 			"bigip_sys_bigiplicense":                resourceBigipSysBigiplicense(),
