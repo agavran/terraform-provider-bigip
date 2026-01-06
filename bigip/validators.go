@@ -39,6 +39,30 @@ func validateF5Name(value interface{}, field string) (ws []string, errors []erro
 	return
 }
 
+func validateF5NameNoPartition(value interface{}, field string) (ws []string, errors []error) {
+	var values []string
+	switch val := value.(type) {
+	case *schema.Set:
+		values = setToStringSlice(val)
+	case []string:
+		values = val
+	case *[]string:
+		values = *(val)
+	case string:
+		values = []string{val}
+	default:
+		errors = append(errors, fmt.Errorf("Unknown type %v in validateF5NameNoPartition ", reflect.TypeOf(value)))
+	}
+	re := regexp.MustCompile(`^[\w_\-.]+$`)
+	for _, v := range values {
+		match := re.MatchString(v)
+		if !match {
+			errors = append(errors, fmt.Errorf("%q must contain only letters, numbers or [._-]. e.g. my-pool", field))
+		}
+	}
+	return
+}
+
 func validateF5NameWithDirectory(value interface{}, field string) (ws []string, errors []error) {
 	var values []string
 	switch val := value.(type) {
