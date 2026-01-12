@@ -25,8 +25,8 @@ func defaultAllowAll() (interface{}, error) {
 func resourceBigipSysHttpd() *schema.Resource {
 	return &schema.Resource{
 		Description: "Manages BIG-IP HTTP daemon configuration. " +
-			"**Note:** Only one instance of this resource should exist per BIG-IP device. " +
-			"Important: F5 Networks recommends that users of the Configuration utility exit the utility before changes are made to the system using the httpd component." +
+			"NOTE: Only one instance of this resource should exist per BIG-IP device. " +
+			"IMPORTANT: F5 Networks recommends that users of the Configuration utility exit the utility before changes are made to the system using the httpd component." +
 			"This is because making changes to the system using this component causes a restart of the httpd daemon." +
 			"Additionally, restarting the httpd daemon creates the necessity for a restart of the Configuration utility.",
 		CreateContext: resourceBigipSysHttpdCreate,

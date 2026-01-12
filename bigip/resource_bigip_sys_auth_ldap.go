@@ -21,7 +21,7 @@ import (
 func resourceBigipSysAuthLdap() *schema.Resource {
 	return &schema.Resource{
 		Description: "Manages BIG-IP LDAP authentication configuration. " +
-			"**Note:** BIG-IP only supports one LDAP authentication configuration named 'system-auth'. " +
+			"NOTE: BIG-IP only supports one LDAP authentication configuration named 'system-auth'. " +
 			"Only one instance of this resource should exist per BIG-IP device. " +
 			"If the LDAP config already exists on the device, use `terraform import` instead of creating a new resource.",
 		CreateContext: resourceBigipSysAuthLdapCreate,

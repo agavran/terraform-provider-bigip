@@ -19,6 +19,9 @@ import (
 
 func resourceBigipSysGlobalSettings() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages BIG-IP global settings configuration (hostname and security banner). " +
+			"NOTE: Only one instance of this resource should exist per BIG-IP device. " +
+			"Multiple resources will reference the same underlying configuration and overwrite each other.",
 		CreateContext: resourceBigipSysGlobalSettingsCreate,
 		UpdateContext: resourceBigipSysGlobalSettingsUpdate,
 		ReadContext:   resourceBigipSysGlobalSettingsRead,

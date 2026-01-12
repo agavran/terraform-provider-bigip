@@ -108,7 +108,7 @@ func validateAllowListDiff(ctx context.Context, diff *schema.ResourceDiff, meta 
 func resourceBigipSysSshd() *schema.Resource {
 	return &schema.Resource{
 		Description: "Manages BIG-IP SSH daemon configuration. " +
-			"**Note:** Only one instance of this resource should exist per BIG-IP device. " +
+			"NOTE: Only one instance of this resource should exist per BIG-IP device. " +
 			"F5 Networks recommends that users of the Configuration utility exit the utility before changes are made to the system using the sshd component." +
 			"This is because making changes to the system using this component causes a restart of the sshd daemon." +
 			"Likewise, restarting the sshd daemon creates the necessity for a restart of the Configuration utility.",

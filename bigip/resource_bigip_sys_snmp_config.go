@@ -93,6 +93,9 @@ func validateAllowedSnmpAddressesDiff(ctx context.Context, diff *schema.Resource
 
 func resourceBigipSysSnmpConfig() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages BIG-IP SNMP configuration. " +
+			"NOTE: Only one instance of this resource should exist per BIG-IP device. " +
+			"Multiple resources will reference the same underlying configuration and overwrite each other.",
 		CreateContext: resourceBigipSysSnmpConfigCreate,
 		UpdateContext: resourceBigipSysSnmpConfigUpdate,
 		ReadContext:   resourceBigipSysSnmpConfigRead,

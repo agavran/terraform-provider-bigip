@@ -37,6 +37,9 @@ func resourceBigipSysRemoteUser() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Manages the system-wide external (remote) user configuration on BIG-IP. " +
+			"NOTE: Only one remote user resource should be created per BIG-IP device. " +
+			"Multiple resources will reference the same underlying configuration and overwrite each other.",
 		CreateContext: resourceBigipSysRemoteUserCreate,
 		UpdateContext: resourceBigipSysRemoteUserUpdate,
 		ReadContext:   resourceBigipSysRemoteUserRead,
@@ -44,9 +47,6 @@ func resourceBigipSysRemoteUser() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-		Description: "Manages the system-wide external (remote) user configuration on BIG-IP. " +
-			"NOTE: Only one remote user resource should be created per BIG-IP device. " +
-			"Multiple resources will reference the same underlying configuration and overwrite each other.",
 		Schema: map[string]*schema.Schema{
 			"default_partition": {
 				Type:        schema.TypeString,

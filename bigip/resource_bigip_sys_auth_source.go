@@ -19,6 +19,9 @@ import (
 
 func resourceBigipSysAuthSource() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages the system-wide authentication source configuration on BIG-IP. " +
+			"NOTE: Only one auth source resource should be created per BIG-IP device. " +
+			"Multiple resources will reference the same underlying configuration and overwrite each other.",
 		CreateContext: resourceBigipSysAuthSourceCreate,
 		UpdateContext: resourceBigipSysAuthSourceUpdate,
 		ReadContext:   resourceBigipSysAuthSourceRead,
@@ -26,9 +29,6 @@ func resourceBigipSysAuthSource() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-		Description: "Manages the system-wide authentication source configuration on BIG-IP. " +
-			"NOTE: Only one auth source resource should be created per BIG-IP device. " +
-			"Multiple resources will reference the same underlying configuration and overwrite each other.",
 		Schema: map[string]*schema.Schema{
 			"type": {
 				Type:     schema.TypeString,

@@ -47,6 +47,9 @@ func setResourceData(d *schema.ResourceData, key string, value interface{}, diag
 
 func resourceBigipSysSyslog() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages BIG-IP Syslog configuration. " +
+			"NOTE: Only one instance of this resource should exist per BIG-IP device. " +
+			"Multiple resources will reference the same underlying configuration and overwrite each other.",
 		CreateContext: resourceBigipSysSyslogCreate,
 		UpdateContext: resourceBigipSysSyslogUpdate,
 		ReadContext:   resourceBigipSysSyslogRead,
