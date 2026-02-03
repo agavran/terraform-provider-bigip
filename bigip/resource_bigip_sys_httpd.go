@@ -39,9 +39,8 @@ func resourceBigipSysHttpd() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"allow": {
 				Type:        schema.TypeList,
-				Optional:    true,
+				Required:    true,
 				Elem:        &schema.Schema{Type: schema.TypeString},
-				DefaultFunc: defaultAllowAll,
 				Description: "List of IP addresses, partial IPs, IP ranges, hostnames, domain names, or network/netmask pairs allowed to access the web interface (default: ALL)",
 			},
 			"auth_name": {

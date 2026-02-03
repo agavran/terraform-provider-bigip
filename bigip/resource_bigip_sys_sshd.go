@@ -123,9 +123,8 @@ func resourceBigipSysSshd() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"allow": {
 				Type:        schema.TypeList,
-				Optional:    true,
+				Required:    true,
 				Elem:        &schema.Schema{Type: schema.TypeString},
-				DefaultFunc: defaultAllowALL,
 				Description: "IP addresses or networks (CIDR) allowed to access SSH (default: ALL)",
 			},
 			"banner": {
