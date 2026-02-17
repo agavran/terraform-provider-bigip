@@ -8,7 +8,9 @@ package bigip
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"time"
 
 	bigip "github.com/f5devcentral/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -82,7 +84,10 @@ func resourceBigipSysProvisionCreate(ctx context.Context, d *schema.ResourceData
 		return diag.FromErr(err)
 	}
 	d.SetId(name)
-	return resourceBigipSysProvisionRead(ctx, d, meta)
+
+	// Provisioning causes service restarts. Wait and retry the read operation
+	// to handle transient 502/503 errors during service restart.
+	return resourceBigipSysProvisionReadWithRetry(ctx, d, meta)
 }
 
 func resourceBigipSysProvisionUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -100,7 +105,81 @@ func resourceBigipSysProvisionUpdate(ctx context.Context, d *schema.ResourceData
 		log.Printf("[ERROR] Unable to Update Provision (%v) ", err)
 		return diag.FromErr(err)
 	}
-	return resourceBigipSysProvisionRead(ctx, d, meta)
+
+	// Provisioning causes service restarts. Wait and retry the read operation
+	// to handle transient 502/503 errors during service restart.
+	return resourceBigipSysProvisionReadWithRetry(ctx, d, meta)
+}
+
+// resourceBigipSysProvisionReadWithRetry handles the read operation with retry logic
+// to accommodate BIG-IP service restarts that occur after provisioning changes.
+// It will poll until the API is available (up to 2 minutes), then perform a final read.
+func resourceBigipSysProvisionReadWithRetry(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var lastErr error
+	maxRetries := 40
+	retryDelay := 3 * time.Second
+	initialDelay := 15 * time.Second
+	levelConvergeRetries := 5
+
+	// Capture the desired level before the retry loop, since successful reads
+	// will overwrite ResourceData with the current (possibly stale) API value.
+	desiredLevel := d.Get("level").(string)
+
+	log.Printf("[INFO] Waiting for BIG-IP services to stabilize after provisioning...")
+
+	log.Printf("[INFO] Initial delay of %v to allow service restart to begin...", initialDelay)
+	time.Sleep(initialDelay)
+
+	// Poll until the API responds successfully or timeout
+	apiAvailable := false
+	for i := 0; i < maxRetries; i++ {
+		diags := resourceBigipSysProvisionRead(ctx, d, meta)
+		if !diags.HasError() {
+			if i > 0 {
+				log.Printf("[INFO] BIG-IP API became available after %d attempts", i+1)
+			}
+			apiAvailable = true
+			break
+		}
+
+		// Continue retrying on ANY error until timeout
+		errMsg := diags[0].Summary
+		lastErr = fmt.Errorf("%s", errMsg)
+		log.Printf("[WARN] Provision read attempt %d/%d failed: %s. Retrying...", i+1, maxRetries, errMsg)
+		time.Sleep(retryDelay)
+	}
+
+	if !apiAvailable {
+		return diag.FromErr(fmt.Errorf("provision read failed after %d retries. Last error: %v", maxRetries, lastErr))
+	}
+
+	// API is available - verify that the provisioned level matches the desired level.
+	// BIG-IP may return 200 OK incorrect or unexpcted data, trying few times.
+	for i := 0; i < levelConvergeRetries; i++ {
+		currentLevel := d.Get("level").(string)
+		if currentLevel == desiredLevel {
+			log.Printf("[INFO] Provision level converged to desired value: %s", desiredLevel)
+			return nil
+		}
+
+		log.Printf("[WARN] Provision level mismatch (attempt %d/%d): got %q, want %q. Retrying...",
+			i+1, levelConvergeRetries, currentLevel, desiredLevel)
+		time.Sleep(retryDelay)
+
+		diags := resourceBigipSysProvisionRead(ctx, d, meta)
+		if diags.HasError() {
+			return diags
+		}
+	}
+
+	// Final check after all retries
+	currentLevel := d.Get("level").(string)
+	if currentLevel != desiredLevel {
+		return diag.FromErr(fmt.Errorf("provision level did not converge: got %q, want %q after %d attempts",
+			currentLevel, desiredLevel, levelConvergeRetries))
+	}
+
+	return nil
 }
 
 func resourceBigipSysProvisionRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

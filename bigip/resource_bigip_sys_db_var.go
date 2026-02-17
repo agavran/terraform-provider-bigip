@@ -14,11 +14,25 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	bigip "github.com/f5devcentral/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
+
+// dbVarsRequiringRestart lists DB variables that cause BIG-IP service restarts
+// when modified. These variables require retry logic to handle transient API
+// unavailability during the restart period.
+var dbVarsRequiringRestart = map[string]bool{
+	"provision.extramb":           true,
+	"provision.restjavad.extramb": true,
+}
+
+// doesDbVarRequireRestart checks if a DB variable causes service restarts
+func doesDbVarRequireRestart(name string) bool {
+	return dbVarsRequiringRestart[name]
+}
 
 // isValidIPAddress validates IPv4 and IPv6 addresses
 func isValidIPAddress(ip string) bool {
@@ -2750,6 +2764,11 @@ func resourceBigipSysDbVariableCreate(ctx context.Context, d *schema.ResourceDat
 		return diag.FromErr(err)
 	}
 	d.SetId(name)
+
+	// For variables that cause service restarts, use retry logic
+	if doesDbVarRequireRestart(name) {
+		return resourceBigipSysDbVariableReadWithRetry(ctx, d, meta)
+	}
 	return resourceBigipSysDbVariableRead(ctx, d, meta)
 }
 
@@ -2759,6 +2778,13 @@ func resourceBigipSysDbVariableRead(ctx context.Context, d *schema.ResourceData,
 	log.Printf("[INFO] Reading System DB Variable: %s", name)
 	obj, err := client.GetDBVariable(name)
 	if err != nil {
+		// Check if this is a 404 "not found" error
+		errStr := err.Error()
+		if strings.Contains(errStr, "was not found") || strings.Contains(errStr, "01020036:3:") {
+			log.Printf("[WARN] System DB variable (%s) not found, removing from state", d.Id())
+			d.SetId("")
+			return nil
+		}
 		log.Printf("[ERROR] Unable to read System DB variable (%s): %v", name, err)
 		return diag.FromErr(err)
 	}
@@ -2797,6 +2823,11 @@ func resourceBigipSysDbVariableUpdate(ctx context.Context, d *schema.ResourceDat
 		log.Printf("[ERROR] Unable to Modify System DB Variable  (%s) (%v)", name, err)
 		return diag.FromErr(err)
 	}
+
+	// For variables that cause service restarts, use retry logic
+	if doesDbVarRequireRestart(name) {
+		return resourceBigipSysDbVariableReadWithRetry(ctx, d, meta)
+	}
 	return resourceBigipSysDbVariableRead(ctx, d, meta)
 }
 
@@ -2811,6 +2842,169 @@ func resourceBigipSysDbVariableDelete(ctx context.Context, d *schema.ResourceDat
 		log.Printf("[ERROR] Unable to set the default value for DB Variable  (%s) (%v)", name, err)
 		return diag.FromErr(err)
 	}
+
+	// For variables that cause service restarts, wait for API to recover
+	if doesDbVarRequireRestart(name) {
+		diags := resourceBigipSysDbVariableWaitForAPI(d, meta)
+		if diags.HasError() {
+			return diags
+		}
+	}
+
 	d.SetId("")
+	return nil
+}
+
+// resourceBigipSysDbVariableReadWithRetry handles the read operation with retry logic
+// for DB variables that cause BIG-IP service restarts.
+// It waits for the restart to begin, then polls until the API is available.
+func resourceBigipSysDbVariableReadWithRetry(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var lastErr error
+	maxRetries := 40
+	retryDelay := 3 * time.Second
+	initialDelay := 15 * time.Second
+	valueConvergeRetries := 5
+	name := d.Id()
+
+	// Capture the desired value before the retry loop, since successful reads
+	desiredValue := d.Get("value").(string)
+
+	log.Printf("[INFO] Waiting for BIG-IP services to stabilize after setting %s...", name)
+
+	log.Printf("[INFO] Initial delay of %v to allow service restart to begin...", initialDelay)
+	time.Sleep(initialDelay)
+
+	// Phase 1: Poll until the API responds successfully or timeout
+	apiAvailable := false
+	for i := 0; i < maxRetries; i++ {
+		diags := resourceBigipSysDbVariableRead(ctx, d, meta)
+		if !diags.HasError() {
+			if i > 0 {
+				log.Printf("[INFO] BIG-IP API became available after %d attempts", i+1)
+			}
+			apiAvailable = true
+			break
+		}
+
+		errMsg := diags[0].Summary
+		lastErr = fmt.Errorf("%s", errMsg)
+		log.Printf("[WARN] DB variable read attempt %d/%d failed: %s. Retrying...", i+1, maxRetries, errMsg)
+		time.Sleep(retryDelay)
+	}
+
+	if !apiAvailable {
+		return diag.FromErr(fmt.Errorf("DB variable read failed after %d retries. Last error: %v", maxRetries, lastErr))
+	}
+
+	// Phase 2: Verify that the DB variable value matches the desired value.
+	// BIG-IP may return 200 OK incorrect or unexpcted data, trying few times
+	for i := 0; i < valueConvergeRetries; i++ {
+		currentValue := d.Get("value").(string)
+		if currentValue == desiredValue {
+			log.Printf("[INFO] DB variable %s converged to desired value: %s", name, desiredValue)
+			return nil
+		}
+
+		log.Printf("[WARN] DB variable %s value mismatch (attempt %d/%d): got %q, want %q. Retrying...",
+			name, i+1, valueConvergeRetries, currentValue, desiredValue)
+		time.Sleep(retryDelay)
+
+		diags := resourceBigipSysDbVariableRead(ctx, d, meta)
+		if diags.HasError() {
+			return diags
+		}
+	}
+
+	// Final check after all retries
+	currentValue := d.Get("value").(string)
+	if currentValue != desiredValue {
+		return diag.FromErr(fmt.Errorf("DB variable %s value did not converge: got %q, want %q after %d attempts",
+			name, currentValue, desiredValue, valueConvergeRetries))
+	}
+
+	return nil
+}
+
+// resourceBigipSysDbVariableWaitForAPI waits for the BIG-IP API to become available
+// after a DB variable change that causes service restarts, then verifies the variable
+// was reset to its default value.
+func resourceBigipSysDbVariableWaitForAPI(d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*bigip.BigIP)
+	var lastErr error
+	maxRetries := 40
+	retryDelay := 3 * time.Second
+	initialDelay := 15 * time.Second
+	valueConvergeRetries := 5
+	name := d.Id()
+
+	log.Printf("[INFO] Waiting for BIG-IP services to stabilize after resetting %s...", name)
+
+	// Wait for the restart to begin - BIG-IP has a delayed restart after certain db var changes
+	log.Printf("[INFO] Initial delay of %v to allow service restart to begin...", initialDelay)
+	time.Sleep(initialDelay)
+
+	// Phase 1: Poll until the API responds successfully or timeout
+	apiAvailable := false
+	for i := 0; i < maxRetries; i++ {
+		_, err := client.GetDBVariable(name)
+		if err == nil {
+			if i > 0 {
+				log.Printf("[INFO] BIG-IP API became available after %d attempts", i+1)
+			}
+			apiAvailable = true
+			break
+		}
+
+		lastErr = err
+		log.Printf("[WARN] API availability check attempt %d/%d failed: %s. Retrying...", i+1, maxRetries, err)
+		time.Sleep(retryDelay)
+	}
+
+	if !apiAvailable {
+		return diag.FromErr(fmt.Errorf("API did not become available after %d retries. Last error: %v", maxRetries, lastErr))
+	}
+
+	// Phase 2: Verify the variable was reset to its default value.
+	// BIG-IP may return 200 OK incorrect or unexpcted data, trying few times
+	defaultVal, hasDefault := bigip.DefaultDBValues[name]
+	if !hasDefault {
+		log.Printf("[INFO] No default value known for %s, skipping convergence check", name)
+		return nil
+	}
+	desiredValue, _ := defaultVal.(string)
+
+	for i := 0; i < valueConvergeRetries; i++ {
+		obj, err := client.GetDBVariable(name)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		if obj != nil && obj.Value == desiredValue {
+			log.Printf("[INFO] DB variable %s converged to default value: %s", name, desiredValue)
+			return nil
+		}
+
+		currentValue := ""
+		if obj != nil {
+			currentValue = obj.Value
+		}
+		log.Printf("[WARN] DB variable %s value mismatch (attempt %d/%d): got %q, want default %q. Retrying...",
+			name, i+1, valueConvergeRetries, currentValue, desiredValue)
+		time.Sleep(retryDelay)
+	}
+
+	// Final check
+	obj, err := client.GetDBVariable(name)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if obj == nil || obj.Value != desiredValue {
+		currentValue := ""
+		if obj != nil {
+			currentValue = obj.Value
+		}
+		return diag.FromErr(fmt.Errorf("DB variable %s did not converge to default: got %q, want %q after %d attempts",
+			name, currentValue, desiredValue, valueConvergeRetries))
+	}
+
 	return nil
 }
