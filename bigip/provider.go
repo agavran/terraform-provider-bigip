@@ -127,6 +127,8 @@ func Provider() *schema.Provider {
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"bigip_cm_device":                       resourceBigipCmDevice(),
+			"bigip_cm_device_self":                  resourceBigipCmDeviceSelf(),
+			"bigip_cm_device_name":                  resourceBigipCmDeviceName(),
 			"bigip_cm_devicegroup":                  resourceBigipCmDevicegroup(),
 			"bigip_net_route":                       resourceBigipNetRoute(),
 			"bigip_net_route_domain":                resourceBigipNetRouteDomain(),
