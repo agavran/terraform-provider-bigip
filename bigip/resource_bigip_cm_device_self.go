@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 
 	bigip "github.com/f5devcentral/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -58,6 +59,32 @@ func validateUnicastIP(val interface{}, key string) (warns []string, errs []erro
 	return
 }
 
+// validateMulticastConfig checks that when any multicast attribute deviates from
+// its default, all three are fully configured and port is non-zero.
+func validateMulticastConfig(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	mcastIface := d.Get("multicast_interface").(string)
+	mcastIP := d.Get("multicast_ip").(string)
+	mcastPort := d.Get("multicast_port").(int)
+
+	if mcastIface == "" && mcastIP == "any6" && mcastPort == 0 {
+		return nil
+	}
+	var errs []string
+	if mcastIface == "" {
+		errs = append(errs, "multicast_interface must be set when configuring multicast")
+	}
+	if mcastIP == "any6" {
+		errs = append(errs, "multicast_ip must be set to a specific IP when configuring multicast")
+	}
+	if mcastPort == 0 {
+		errs = append(errs, "multicast_port must be non-zero when configuring multicast")
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("incomplete multicast configuration: %s", strings.Join(errs, "; "))
+	}
+	return nil
+}
+
 func resourceBigipCmDeviceSelf() *schema.Resource {
 	return &schema.Resource{
 		Description: "Manages BIG-IP CM Device Self configuration for clustering and high availability. " +
@@ -70,6 +97,7 @@ func resourceBigipCmDeviceSelf() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
+		CustomizeDiff: validateMulticastConfig,
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Type:        schema.TypeString,
@@ -114,7 +142,7 @@ func resourceBigipCmDeviceSelf() *schema.Resource {
 				Type:         schema.TypeInt,
 				Optional:     true,
 				Default:      0,
-				ValidateFunc: validation.IntBetween(0, 65535),
+				ValidateFunc: validation.IntBetween(1, 65535),
 				Description:  "Port for multicast failover (default: 0)",
 			},
 			"unicast_address": {
