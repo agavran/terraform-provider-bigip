@@ -85,10 +85,10 @@ type Provisions struct {
 type Provision struct {
 	Name        string `json:"name,omitempty"`
 	FullPath    string `json:"fullPath,omitempty"`
-	CpuRatio    int    `json:"cpuRatio,omitempty"`
-	DiskRatio   int    `json:"diskRatio,omitempty"`
+	CpuRatio    int    `json:"cpuRatio"`
+	DiskRatio   int    `json:"diskRatio"`
 	Level       string `json:"level,omitempty"`
-	MemoryRatio int    `json:"memoryRatio,omitempty"`
+	MemoryRatio int    `json:"memoryRatio"`
 }
 
 type SNMPs struct {
@@ -237,16 +237,13 @@ const (
 	uriNtp             = "ntp"
 	uriDNS             = "dns"
 	uriProvision       = "provision"
-	uriAfm             = "afm"
 	uriAsm             = "asm"
 	uriApm             = "apm"
-	uriAvr             = "avr"
 	uriAuth            = "auth"
 	uriPartition       = "partition"
 	uriRemoteRole      = "remote-role"
 	uriRoleInfo        = "role-info"
 	uriFolder          = "folder"
-	uriIlx             = "ilx"
 	uriSyslog          = "syslog"
 	uriSnmp            = "snmp"
 	uriTraps           = "traps"
@@ -725,7 +722,31 @@ func (b *BigIP) DNSs() (*DNS, error) {
 	return &dns, nil
 }
 
+var provisionURIs = map[string]string{
+	"afm": "afm",
+	"apm": "apm",
+	"asm": "asm",
+	"avr": "avr",
+	"gtm": "gtm",
+	"ilx": "ilx",
+	"ltm": "ltm",
+}
+
+var DefaultProvisionLevels = map[string]string{
+	"afm": "none",
+	"apm": "none",
+	"asm": "none",
+	"avr": "none",
+	"gtm": "none",
+	"ilx": "none",
+	"ltm": "nominal",
+}
+
 func (b *BigIP) CreateProvision(name string, fullPath string, cpuRatio int, diskRatio int, level string, memoryRatio int) error {
+	uri, ok := provisionURIs[name]
+	if !ok {
+		return fmt.Errorf("unsupported provision module: %s", name)
+	}
 	config := &Provision{
 		Name:        name,
 		FullPath:    fullPath,
@@ -734,106 +755,47 @@ func (b *BigIP) CreateProvision(name string, fullPath string, cpuRatio int, disk
 		Level:       level,
 		MemoryRatio: memoryRatio,
 	}
-	if name == "asm" {
-		return b.put(config, uriSys, uriProvision, uriAsm)
-	}
-	if name == "afm" {
-		return b.put(config, uriSys, uriProvision, uriAfm)
-
-	}
-	if name == "gtm" {
-		return b.put(config, uriSys, uriProvision, uriGtm)
-	}
-
-	if name == "apm" {
-		return b.put(config, uriSys, uriProvision, uriApm)
-	}
-
-	if name == "avr" {
-		return b.put(config, uriSys, uriProvision, uriAvr)
-	}
-	if name == "ilx" {
-		return b.put(config, uriSys, uriProvision, uriIlx)
-	}
-	return nil
+	return b.patch(config, uriSys, uriProvision, uri)
 }
 
 func (b *BigIP) ProvisionModule(config *Provision) error {
-	log.Printf(" Module Provision:%v", config)
-	if config.Name == "asm" {
-		return b.put(config, uriSys, uriProvision, uriAsm)
+	log.Printf("[INFO] Module Provision: %v", config)
+	uri, ok := provisionURIs[config.Name]
+	if !ok {
+		return fmt.Errorf("unsupported provision module: %s", config.Name)
 	}
-	if config.Name == "afm" {
-		return b.put(config, uriSys, uriProvision, uriAfm)
+	return b.patch(config, uriSys, uriProvision, uri)
+}
+
+func (b *BigIP) ResetProvision(name string) error {
+	defaultLevel, ok := DefaultProvisionLevels[name]
+	if !ok {
+		return fmt.Errorf("unknown provision module: %s", name)
 	}
-	if config.Name == "gtm" {
-		return b.put(config, uriSys, uriProvision, uriGtm)
+	uri := provisionURIs[name]
+	config := &Provision{
+		Level:       defaultLevel,
+		CpuRatio:    0,
+		DiskRatio:   0,
+		MemoryRatio: 0,
 	}
-	if config.Name == "apm" {
-		return b.put(config, uriSys, uriProvision, uriApm)
-	}
-	if config.Name == "avr" {
-		return b.put(config, uriSys, uriProvision, uriAvr)
-	}
-	if config.Name == "ilx" {
-		return b.put(config, uriSys, uriProvision, uriIlx)
-	}
-	return nil
+	return b.patch(config, uriSys, uriProvision, uri)
 }
 
 func (b *BigIP) DeleteProvision(name string) error {
-	// Delete API does not exists for resource Provision
-	return b.delete(uriSys, uriProvision, uriIlx, name)
+	return b.ResetProvision(name)
 }
 
 func (b *BigIP) Provisions(name string) (*Provision, error) {
+	uri, ok := provisionURIs[name]
+	if !ok {
+		return nil, fmt.Errorf("unsupported provision module: %s", name)
+	}
 	var provision Provision
-	if name == "afm" {
-		err, _ := b.getForEntity(&provision, uriSys, uriProvision, uriAfm)
-
-		if err != nil {
-			return nil, err
-		}
+	err, _ := b.getForEntity(&provision, uriSys, uriProvision, uri)
+	if err != nil {
+		return nil, err
 	}
-	if name == "asm" {
-		err, _ := b.getForEntity(&provision, uriSys, uriProvision, uriAsm)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-	if name == "gtm" {
-		err, _ := b.getForEntity(&provision, uriSys, uriProvision, uriGtm)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-	if name == "apm" {
-		err, _ := b.getForEntity(&provision, uriSys, uriProvision, uriApm)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-	if name == "avr" {
-		err, _ := b.getForEntity(&provision, uriSys, uriProvision, uriAvr)
-
-		if err != nil {
-			return nil, err
-		}
-
-	}
-	if name == "ilx" {
-		err, _ := b.getForEntity(&provision, uriSys, uriProvision, uriIlx)
-
-		if err != nil {
-			return nil, err
-		}
-
-	}
-
-	log.Println("Display ****************** provision  ", provision)
 	return &provision, nil
 }
 

@@ -33,7 +33,7 @@ func resourceBigipSysProvision() *schema.Resource {
 				Type:         schema.TypeString,
 				Required:     true,
 				Description:  "Name of module to provision in BIG-IP.",
-				ValidateFunc: validation.StringInSlice([]string{"afm", "am", "apm", "asm", "avr", "cgnat", "dos", "fps", "gtm", "ilx", "lc", "ltm", "pem", "sslo", "swg", "urldb"}, false),
+				ValidateFunc: validation.StringInSlice([]string{"afm", "apm", "asm", "avr", "gtm", "ilx", "ltm"}, false),
 			},
 			"full_path": {
 				Type:     schema.TypeString,
@@ -206,8 +206,20 @@ func resourceBigipSysProvisionRead(ctx context.Context, d *schema.ResourceData, 
 }
 
 func resourceBigipSysProvisionDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// API is not supported for Deleting
-	return nil
+	client := meta.(*bigip.BigIP)
+	name := d.Id()
+	log.Printf("[INFO] Resetting provision for module: %s", name)
+
+	if err := client.ResetProvision(name); err != nil {
+		log.Printf("[ERROR] Unable to Reset Provision (%s): %v", name, err)
+		return diag.FromErr(err)
+	}
+
+	defaultLevel := bigip.DefaultProvisionLevels[name]
+	_ = d.Set("level", defaultLevel)
+
+	// Provisioning can cause service restarts — wait for API to stabilize
+	return resourceBigipSysProvisionReadWithRetry(ctx, d, meta)
 }
 
 func getsysProvisionConfig(d *schema.ResourceData, config *bigip.Provision) *bigip.Provision {

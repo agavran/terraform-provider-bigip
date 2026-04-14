@@ -2,6 +2,8 @@ package bigip
 
 import (
 	"fmt"
+	"log"
+	"strings"
 )
 
 const (
@@ -2605,23 +2607,39 @@ func (b *BigIP) CreateDBVariable(config *DBVariable) error {
 }
 
 // DeleteDBVariable resets a DB variable to its default value.
-// DELETE method is not supported for database variables - this function
-// instead updates the value to the default value from DefaultDBValues map.
+// It attempts to use the tmsh "reset-to-defaults" command via the bash API endpoint.
+// If bash access is disabled on the device (apiError 26214401), it falls back to
+// patching the variable with the known default value from the DefaultDBValues map.
 func (b *BigIP) DeleteDBVariable(name string) error {
-	val, ok := DefaultDBValues[name]
-	if !ok {
-		return fmt.Errorf("default value not found for DB variable '%s'. This variable may not be supported or may not have a default value defined", name)
+	cmd := &BigipCommand{
+		Command:     "run",
+		UtilCmdArgs: fmt.Sprintf("-c 'tmsh modify sys db %s reset-to-default'", name),
+	}
+	log.Printf("[DEBUG] DeleteDBVariable: sending command: %s", cmd.UtilCmdArgs)
+	result, err := b.RunCommand(cmd)
+	if err != nil {
+		log.Printf("[DEBUG] DeleteDBVariable: RunCommand HTTP error for '%s': %v", name, err)
+		// Check if bash is disabled on this device
+		if strings.Contains(err.Error(), "bash access has been disabled") || strings.Contains(err.Error(), "26214401") {
+			log.Printf("[DEBUG] DeleteDBVariable: bash is disabled, falling back to DefaultDBValues PATCH for '%s'", name)
+			val, ok := DefaultDBValues[name]
+			if !ok {
+				return fmt.Errorf("bash is disabled and default value not found for DB variable '%s'", name)
+			}
+			stringVal, ok := val.(string)
+			if !ok {
+				return fmt.Errorf("bash is disabled and default value for DB variable '%s' is not a string (got type %T)", name, val)
+			}
+			return b.patch(&DBVariable{Value: stringVal}, uriSys, uriDb, name)
+		}
+		return err
 	}
 
-	stringVal, ok := val.(string)
-	if !ok {
-		return fmt.Errorf("default value for DB variable '%s' is not a string (got type %T)", name, val)
+	if result != nil {
+		log.Printf("[DEBUG] DeleteDBVariable: CommandResult for '%s': %q", name, result.CommandResult)
 	}
-
-	config := &DBVariable{
-		Value: stringVal,
-	}
-	return b.patch(config, uriSys, uriDb, name)
+	log.Printf("[DEBUG] DeleteDBVariable: reset '%s' to defaults via tmsh command", name)
+	return nil
 }
 
 // ModifyDBVariable allows the change of DB variable value
