@@ -433,6 +433,22 @@ func (b *BigIP) GetSelfDeviceName() (string, error) {
 	return "", fmt.Errorf("no self device found")
 }
 
+// GetSelfDeviceMarketingName returns the marketingName of the local BIG-IP device.
+func (b *BigIP) GetSelfDeviceMarketingName() (string, error) {
+	devices, err := b.GetDevices()
+	if err != nil {
+		return "", err
+	}
+
+	for _, d := range devices {
+		if d.SelfDevice == "true" {
+			return d.MarketingName, nil
+		}
+	}
+
+	return "", fmt.Errorf("no self device found")
+}
+
 // CreateDeviceName renames the BIG-IP device to the specified target name.
 func (b *BigIP) CreateDeviceName(target string) error {
 	currentName, err := b.GetSelfDeviceName()

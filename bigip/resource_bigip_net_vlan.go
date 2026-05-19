@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	bigip "github.com/f5devcentral/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -89,6 +90,24 @@ func resourceBigipNetVlanCreate(ctx context.Context, d *schema.ResourceData, met
 
 	log.Printf("[INFO] Creating VLAN %s", name)
 
+	marketingName, err := client.GetSelfDeviceMarketingName()
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("error detecting device type: %v", err))
+	}
+	log.Printf("[DEBUG] VLAN create: detected device marketingName=%q", marketingName)
+	if marketingName == "BIG-IP Tenant" {
+		existing, err := client.Vlan(name)
+		if err != nil && !strings.Contains(err.Error(), fmt.Sprintf("The requested VLAN (%s) was not found", name)) {
+			return diag.FromErr(fmt.Errorf("error checking if VLAN %s exists on tenant: %v", name, err))
+		}
+		if existing != nil {
+			log.Printf("[INFO] VLAN %s already exists on tenant, skipping creation and reading state", name)
+			d.SetId(name)
+			return resourceBigipNetVlanRead(ctx, d, meta)
+		}
+		log.Printf("[INFO] VLAN %s does not exist on tenant, proceeding with creation", name)
+	}
+
 	d.Partial(true)
 
 	r := &bigip.Vlan{
@@ -98,7 +117,7 @@ func resourceBigipNetVlanCreate(ctx context.Context, d *schema.ResourceData, met
 		CMPHash: d.Get("cmp_hash").(string),
 	}
 
-	err := client.CreateVlan(r)
+	err = client.CreateVlan(r)
 
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("Error creating VLAN %s: %v ", name, err))
@@ -184,6 +203,16 @@ func resourceBigipNetVlanUpdate(ctx context.Context, d *schema.ResourceData, met
 
 	log.Printf("[INFO] Updating VLAN %s", name)
 
+	marketingName, err := client.GetSelfDeviceMarketingName()
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("error detecting device type: %v", err))
+	}
+	if marketingName == "BIG-IP Tenant" {
+		if d.HasChange("tag") || d.HasChange("interfaces") {
+			return diag.FromErr(fmt.Errorf("VLAN %s: tag and interfaces cannot be modified on a BIG-IP Tenant, these are managed by the host", name))
+		}
+	}
+
 	r := &bigip.Vlan{
 		Name:    name,
 		Tag:     d.Get("tag").(int),
@@ -191,7 +220,7 @@ func resourceBigipNetVlanUpdate(ctx context.Context, d *schema.ResourceData, met
 		CMPHash: d.Get("cmp_hash").(string),
 	}
 
-	err := client.ModifyVlan(name, r)
+	err = client.ModifyVlan(name, r)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("error modifying VLAN %s: %v", name, err))
 	}
