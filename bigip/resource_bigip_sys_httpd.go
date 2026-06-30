@@ -9,13 +9,49 @@ package bigip
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	bigip "github.com/f5devcentral/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
+
+func httpdPatchWithRetry(client *bigip.BigIP, crudOpName string, config *bigip.HTTPDConfig) error {
+	const maxRetries = 5
+	const retryDelay = 15 * time.Second
+	for i := 0; i < maxRetries; i++ {
+		log.Printf("[DEBUG] HTTPD %s: attempt %d/%d", crudOpName, i+1, maxRetries)
+
+		var err error
+		switch crudOpName {
+		case "create":
+			err = client.CreateHTTPDConfig(config)
+		case "modify":
+			err = client.ModifyHTTPDConfig(config)
+		case "delete":
+			err = client.DeleteHTTPDConfig()
+		default:
+			return fmt.Errorf("HTTPD %s: unknown operation", crudOpName)
+		}
+
+		if err == nil {
+			log.Printf("[DEBUG] HTTPD %s: attempt %d succeeded", crudOpName, i+1)
+			return nil
+		}
+		log.Printf("[DEBUG] HTTPD %s: attempt %d error type=%T value=%v", crudOpName, i+1, err, err)
+		if strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection reset") {
+			log.Printf("[INFO] HTTPD %s: httpd is restarting (%v), waiting %s before retry (%d/%d)", crudOpName, err, retryDelay, i+1, maxRetries)
+			time.Sleep(retryDelay)
+			continue
+		}
+		return err
+	}
+	return fmt.Errorf("HTTPD %s: exceeded %d retries", crudOpName, maxRetries)
+}
 
 // defaultAllowAll returns the default value for the allow field
 func defaultAllowAll() (interface{}, error) {
@@ -349,7 +385,8 @@ func resourceBigipSysHttpdCreate(ctx context.Context, d *schema.ResourceData, me
 	log.Printf("[INFO] Creating HTTPD configuration")
 	config := buildHttpdConfig(d)
 
-	if err := client.CreateHTTPDConfig(config); err != nil {
+	err := httpdPatchWithRetry(client, "create", config)
+	if err != nil {
 		log.Printf("[ERROR] Unable to Create HTTPD configuration: %v", err)
 		return diag.FromErr(err)
 	}
@@ -389,7 +426,8 @@ func resourceBigipSysHttpdUpdate(ctx context.Context, d *schema.ResourceData, me
 		}
 	}
 
-	if err := client.ModifyHTTPDConfig(config); err != nil {
+	err := httpdPatchWithRetry(client, "modify", config)
+	if err != nil {
 		log.Printf("[ERROR] Unable to Modify HTTPD configuration: %v", err)
 		return diag.FromErr(err)
 	}
@@ -457,7 +495,7 @@ func resourceBigipSysHttpdDelete(ctx context.Context, d *schema.ResourceData, me
 
 	log.Printf("[INFO] Resetting HTTPD configuration to defaults")
 
-	err := client.DeleteHTTPDConfig()
+	err := httpdPatchWithRetry(client, "delete", nil)
 	if err != nil {
 		log.Printf("[ERROR] Unable to Reset HTTPD configuration (%v)", err)
 		return diag.FromErr(err)
