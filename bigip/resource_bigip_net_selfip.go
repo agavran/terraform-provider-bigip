@@ -12,6 +12,7 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"time"
 
 	bigip "github.com/f5devcentral/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -159,13 +160,30 @@ func resourceBigipNetSelfIPDelete(ctx context.Context, d *schema.ResourceData, m
 
 	log.Printf("[INFO] Deleting SelfIP %s", name)
 
-	err := client.DeleteSelfIP(name)
-	if err != nil {
+	// Implementing special handling for floating IPs
+	// Due to automated parallel self IP removal, automation might try to delete local self IP before ConfigSync remove relate floating self IP
+	// Example of API Error that would be received in this case:
+	// "code": 400,
+	// "message": "01070393:3: Cannot delete IP 10.1.20.227 because it would leave floating self IP /Common/10.1.20.228 with no non-floating IP on this network."
+	const maxRetries = 20
+	const retryDelay = 15 * time.Second
+	for i := 0; i < maxRetries; i++ {
+		log.Printf("[DEBUG] SelfIP delete %s: attempt %d/%d", name, i+1, maxRetries)
+		err := client.DeleteSelfIP(name)
+		if err == nil {
+			d.SetId("")
+			return nil
+		}
+		if strings.Contains(err.Error(), "01070393:3") {
+			log.Printf("[INFO] SelfIP delete %s: floating IP dependency, waiting %s before retry (%d/%d)", name, retryDelay, i+1, maxRetries)
+			log.Printf("[INFO] SelfIP delete %s - API error: %v", name, err)
+			time.Sleep(retryDelay)
+			continue
+		}
 		return diag.FromErr(fmt.Errorf("Error deleting SelfIP %s: %v ", name, err))
 	}
 
-	d.SetId("")
-	return nil
+	return diag.FromErr(fmt.Errorf("Error deleting SelfIP %s: floating IP dependency not resolved after %d retries", name, maxRetries))
 }
 
 func getNetSelfIPConfig(d *schema.ResourceData, config *bigip.SelfIP) *bigip.SelfIP {
