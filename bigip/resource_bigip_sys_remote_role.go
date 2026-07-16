@@ -10,6 +10,7 @@ package bigip
 import (
 	"context"
 	"log"
+	"math"
 
 	bigip "github.com/f5devcentral/go-bigip"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -60,7 +61,7 @@ func resourceBigipSysRemoteRole() *schema.Resource {
 			"line_order": {
 				Type:         schema.TypeInt,
 				Required:     true,
-				ValidateFunc: validation.IntBetween(0, 4294967295),
+				ValidateFunc: validation.IntBetween(0, math.MaxInt),
 				Description:  "Order in which the remote role is processed (recommended starting at 1000)",
 			},
 			"role": {
